@@ -10,6 +10,26 @@ class vector {
 	using Element = T;
 	using ElementPtr = T*;
 public:
+	class Iterator {
+	public:
+		Iterator(ElementPtr ptr)
+			:
+			m_Ptr(ptr)
+		{}
+
+		Element& operator*() { return *m_Ptr; }
+		ElementPtr operator->() { return m_Ptr; }
+
+		Iterator& operator++() { m_Ptr++; return *this; }
+		Iterator operator++(int) { Iterator it = *this; ++(*this); return it; }
+
+		friend bool operator==(const Iterator& a, const Iterator& b) { return a.m_Ptr == b.m_Ptr; }
+		friend bool operator!=(const Iterator& a, const Iterator& b) { return a.m_Ptr != b.m_Ptr; }
+	private:
+		ElementPtr m_Ptr;
+	};
+
+public:
 	vector(size_t capacity)
 		:
 		m_Elements(new Element[capacity]),
@@ -153,6 +173,9 @@ public:
 		assert(index < m_Capacity);
 		return m_Elements[index]; 
 	}
+
+	Iterator begin() { return Iterator(m_Elements); }
+	Iterator end() const { return Iterator(m_Elements + m_Size); }
 
 private:
 	ElementPtr m_Elements;

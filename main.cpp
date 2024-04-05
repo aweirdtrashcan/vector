@@ -11,7 +11,7 @@ int main(void) {
 
 	v[2] = "C+++";
 
-	for (size_t i = 0; i < v.size(); i++) {
-		std::cout << v[i] << "\n";
+	for (const std::string& a : v) {
+		std::cout << a << "\n";
 	}
 }
