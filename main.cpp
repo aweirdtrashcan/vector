@@ -1,17 +1,32 @@
 #include "vector.h"
 #include <iostream>
 
-int main(void) {
-	vector<std::string> v;
-
-	v.push_back("Hello");
-	v.push_back("Dear");
-	v.push_back("C++");
-	v.push_back("World");
-
-	v[2] = "C+++";
-
-	for (const std::string& a : v) {
-		std::cout << a << "\n";
+void printlist(list<const char*> list) {
+	for (const auto& s : list) {
+		std::cout << s << "\n";
 	}
+}
+
+int main(void) {
+	list<const char*> v(150);
+
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+	v.push_back("Hello World");
+
+	printlist(v);
 }

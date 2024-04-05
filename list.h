@@ -2,13 +2,16 @@
 
 #include <memory>
 #include <cassert>
+#include <type_traits>
 
 static size_t s_ResizeFactor = 2;
 
 template<typename T>
-class vector {
+class list {
 	using Element = T;
 	using ElementPtr = T*;
+	using ElementRef = T&;
+	using ElementRValue = T&&;
 public:
 	class Iterator {
 	public:
@@ -16,8 +19,8 @@ public:
 			:
 			m_Ptr(ptr)
 		{}
-
-		Element& operator*() { return *m_Ptr; }
+		
+		ElementRef operator*() { return *m_Ptr; }
 		ElementPtr operator->() { return m_Ptr; }
 
 		Iterator& operator++() { m_Ptr++; return *this; }
@@ -30,28 +33,33 @@ public:
 	};
 
 public:
-	vector(size_t capacity)
+	list(size_t capacity)
 		:
-		m_Elements(new Element[capacity]),
+		m_Elements(allocate(capacity)),
 		m_Size(0),
 		m_Capacity(capacity)
-	{}
+	{
+		static_assert(std::is_copy_constructible_v<Element>, "The template argument must be copy constructible to be used in the list.");
+		static_assert(std::is_move_constructible_v<Element>, "The template argument must be move constructible to be used in the list.");
+	}
 
-	vector()
+	list()
 		:
 		m_Elements(nullptr),
 		m_Size(0),
 		m_Capacity(0)
-	{}
+	{
+		static_assert(std::is_copy_constructible_v<Element>, "The template argument must be copy constructible to be used in the list.");
+		static_assert(std::is_move_constructible_v<Element>, "The template argument must be move constructible to be used in the list.");
+	}
 
-	vector(const vector& rhs) 
+	list(const list& rhs) 
 		:
-		m_Elements(new Element[rhs.m_Capacity]),
+		m_Elements(allocate(rhs.m_Capacity)),
 		m_Size(rhs.m_Size),
 		m_Capacity(rhs.m_Capacity) {
 		
 		assert(m_Elements != nullptr);
-		memset(m_Elements, 0, sizeof(Element) * m_Capacity);
 
 		for (size_t i = 0; i < m_Size; i++) {
 			ElementPtr ptr = &m_Elements[i];
@@ -59,23 +67,23 @@ public:
 		}
 	}
 
-	vector(vector&& rhs) 
+	list(list&& rhs) 
 		:
 		m_Elements(rhs.m_Elements),
 		m_Size(rhs.m_Size),
 		m_Capacity(rhs.m_Capacity) {
-		memset(&rhs, 0, sizeof(rhs));
+		rhs.m_Elements = nullptr;
+		rhs.m_Size = 0;
+		rhs.m_Capacity = 0;
 	}
 
-	~vector() {
-		if (m_Elements != nullptr) {
-			delete[] m_Elements;
-		}
+	~list() {
+		delete[] m_Elements;
 		m_Size = 0;
 		m_Capacity = 0;
 	}
 
-	void push_back(const Element& element) {
+	void push_back(const ElementRef element) {
 		if (m_Capacity == 0) {
 			resize(2);
 		}
@@ -89,7 +97,7 @@ public:
 		}
 	}
 
-	void push_back(Element&& element) {
+	void push_back(ElementRValue element) {
 		if (m_Size >= m_Capacity) {
 			if (m_Capacity == 0) {
 				resize(2);
@@ -104,10 +112,10 @@ public:
 		}
 	}
 
-	size_t find_index(const Element& element) const {
+	size_t find_index(const ElementRef element) const {
 		if (m_Size != 0) {
 			for (size_t i = 0; i < size(); i++) {
-				const Element& el = m_Elements[i];
+				const ElementRef el = m_Elements[i];
 				if (el == element) {
 					return i;
 				}
@@ -118,7 +126,7 @@ public:
 
 	void remove_last() {
 		if (m_Size != 0) {
-			Element& el = m_Elements[m_Size];
+			ElementRef el = m_Elements[m_Size];
 			el.~Element();
 			memset(&m_Elements[m_Size], 0, sizeof(Element));
 		}
@@ -126,7 +134,8 @@ public:
 
 	void remove_at(size_t index) {
 		assert(index < m_Size);
-		Element& el = m_Elements[index];
+		assert(m_Size <= 0);
+		ElementRef& el = m_Elements[index];
 		el.~Element();
 		memset(&m_Elements[index], 0, sizeof(Element));
 		
@@ -135,7 +144,9 @@ public:
 			memcpy(&m_Elements[index], &m_Elements[index + 1], (index - size()) * sizeof(Element));
 		}
 
-		m_Size--;
+		if (m_Size - 1 > 0) {
+			m_Size--;
+		}
 	}
 
 	void remove_all() {
@@ -151,8 +162,8 @@ public:
 	}
 
 	void resize(size_t new_size) {
-		ElementPtr new_elements = new Element[new_size];
-		memset(new_elements, 0, sizeof(Element) * new_size);
+		ElementPtr new_elements = allocate(new_size);
+
 		for (size_t i = 0; i < size(); i++) {
 			ElementPtr ptr = &new_elements[i];
 			new (static_cast<void*>(ptr)) Element(std::move(m_Elements[i]));
@@ -164,12 +175,12 @@ public:
 	
 	size_t size() const { return m_Size; }
 
-	const Element& operator[](size_t index) const { 
+	const ElementRef operator[](size_t index) const { 
 		assert(index < m_Capacity);
 		return m_Elements[index];
 	}
 
-	Element& operator[](size_t index) { 
+	ElementRef operator[](size_t index) { 
 		assert(index < m_Capacity);
 		return m_Elements[index]; 
 	}
@@ -178,8 +189,19 @@ public:
 	Iterator end() const { return Iterator(m_Elements + m_Size); }
 
 private:
+	ElementPtr allocate(size_t element_count) {
+		ElementPtr elements = new Element[element_count];
+
+		// memsetting the array to 0 if Element == number
+		if (std::is_arithmetic_v<Element>) {
+			memset(elements, 0, sizeof(Element) * element_count);
+		}
+		
+		return elements;
+	}
+
+private:
 	ElementPtr m_Elements;
 	size_t m_Size;
 	size_t m_Capacity;
 };
-
